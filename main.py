@@ -201,7 +201,7 @@ async def main(filename: str):
         if kid == required_kid:
             break
     else:
-        raise Exception("kid nto found")
+        raise Exception("kid not found")
     found_cert = cert
     #pprint.pprint(found_cert)
 
