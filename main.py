@@ -225,4 +225,4 @@ async def main(filename: str):
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main("input3.pdf"))
+    asyncio.run(main("input/input1.pdf"))
