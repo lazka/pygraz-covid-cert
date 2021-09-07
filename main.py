@@ -6,6 +6,10 @@ references:
 * docs of all used libraries
 """
 
+from datetime import datetime, timezone
+
+NOW = datetime.now(timezone.utc)
+
 
 async def fetch_austria_data_and_verify(thing: str):
     # See https://github.com/Federal-Ministry-of-Health-AT/green-pass-overview
@@ -48,14 +52,23 @@ qtgnjRgCIQCZHIHbCvlgg5uL8ZJQzAxLavqF2w6uUxYVrvYDj2Cqjw==
     cose_msg.verify_signature()
 
     # Load the content and check that the checksum matches
-    import cbor2
+    # and that it is still valid
     import hashlib
+    import cbor2
+    import time
+    signature_content = cbor2.loads(cose_msg.payload)
+    checksum = signature_content[2]
+    valid_from = signature_content[5]
+    valid_until = signature_content[4]
+
     async with httpx.AsyncClient() as client:
         r = await client.get(f"https://dgc-trust.qr.gv.at/{thing}")
         r.raise_for_status()
         content = r.content
-    if cbor2.loads(cose_msg.payload)[2] != hashlib.sha256(content).digest():
+    if checksum != hashlib.sha256(content).digest():
         raise Exception()
+    if not (valid_from <= NOW.timestamp() <= valid_until):
+        raise Exception("trust data not valid re time")
 
     # We can trust the content, so decode it
     return cbor2.loads(content)
@@ -114,8 +127,7 @@ async def check_rules(hcert):
     #pprint.pprint(filtered_rules[1]["Logic"])
 
     # Create the required input for certlogic
-    from datetime import datetime, timezone
-    validationClock = datetime.now(timezone.utc).isoformat()
+    validationClock = NOW.isoformat()
     logic_data = {
         "payload": hcert,
         "external": {
@@ -197,7 +209,10 @@ async def main(filename: str):
     from cryptography import x509
     from cose.keys import EC2Key
     cert = x509.load_der_x509_certificate(found_cert)
-    #pprint.pprint(cert)
+    if NOW < cert.not_valid_before.replace(tzinfo=timezone.utc):
+        raise Exception("cert not valid")
+    if NOW > cert.not_valid_after.replace(tzinfo=timezone.utc):
+        raise Exception("cert not valid")
 
     # Convert the CERT to a COSE key and verify teh signature
     # WARNING: we assume ES256 here but all other algorithms are allowed too
@@ -212,9 +227,13 @@ async def main(filename: str):
     # Now we know it is valid, so decode the payload and pretty print
     # https://ec.europa.eu/health/sites/default/files/ehealth/docs/covid-certificate_json_specification_en.pdf
     import cbor2
-    import pprint
     payload = cbor2.loads(cose_msg.payload)
     #pprint.pprint(payload)
+
+    # Check if the cert is still valid
+    valid_from, valid_until = payload[6], payload[4]
+    if not (valid_from <= NOW.timestamp() <= valid_until):
+        raise Exception("hcert not valid re time")
 
     # Get the inner content
     hcert = payload[-260][1]
@@ -225,4 +244,5 @@ async def main(filename: str):
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main("input/input1.pdf"))
+    import sys
+    asyncio.run(main(sys.argv[1]))
