@@ -216,7 +216,7 @@ async def main(filename: str):
     if NOW > cert.not_valid_after.replace(tzinfo=timezone.utc):
         raise Exception("cert not valid")
 
-    # Convert the CERT to a COSE key and verify teh signature
+    # Convert the CERT to a COSE key and verify the signature
     # WARNING: we assume ES256 here but all other algorithms are allowed too
     assert cose_msg.get_attr(cose.headers.Algorithm).fullname == "ES256"
     public_key = cert.public_key()
