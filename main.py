@@ -118,11 +118,13 @@ async def check_rules(hcert):
         value_sets_for_logic[v["valueSetId"]] = list(v["valueSetValues"].keys())
 
     # filter the rules so we only get the ones for Austria and only "Eintrittstest"
+    from dateutil.parser import isoparse
     filtered_rules = []
     for entry in rules["r"]:
         r = json.loads(entry["r"])
         if r["Country"] == "AT" and r["Region"] == "ET":
-            filtered_rules.append(r)
+            if isoparse(r["ValidFrom"]) <= NOW <= isoparse(r["ValidTo"]):
+                filtered_rules.append(r)
     #pprint.pprint(filtered_rules[1]["Description"])
     #pprint.pprint(filtered_rules[1]["Logic"])
 
