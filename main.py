@@ -49,7 +49,8 @@ qtgnjRgCIQCZHIHbCvlgg5uL8ZJQzAxLavqF2w6uUxYVrvYDj2Cqjw==
 
     # Set the key and verify the signature
     cose_msg.key = cose_key
-    cose_msg.verify_signature()
+    if not cose_msg.verify_signature():
+        raise Exception("invalid signature")
 
     # Load the content and check that the checksum matches
     # and that it is still valid
